@@ -1,0 +1,35 @@
+[package]
+name = "dot-benchmarks"
+version = "0.0.0"
+description = "A Tauri App"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+
+[dependencies]
+ndarray = { version = "*", features = ["blas"] }
+ndarray-rand = "*"
+rand="*"
+blas-src = { version = "0.8", features = ["openblas"] }
+openblas-src = { version = "0.10", features = ["cblas", "system"] }
+indicatif = {version = "0.16", features = ["rayon"]}
+#time = "*"
+rayon = "*"
+assert_approx_eq = "*"
+packed_simd="*"
+
+
+#Setting the CPU Flag to compile F-A-S-T
+#You probably want RUSTFLAGS="-Ctarget-cpu=native", not cargo rustc -- -Ctarget-cpu=native.
+#The former applies the flags to all compilations, even dependencies,
+#the latter only does it for the topmost crate in the deptree.
+#RUSTFLAGS="-Ctarget-cpu=native"
+[build]
+rustflags = ["-Ctarget-cpu=native"]
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
