@@ -3,28 +3,28 @@
 
 extern crate blas_src;
 extern crate packed_simd;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use ndarray::Array1;
 use ndarray_rand::rand_distr::Uniform;
-use rand::Rng; // 0.6.5
 use packed_simd::f64x8;
+use rand::Rng; // 0.6.5
 
 type Precision = f64;
-const VEC_SIZE: u64 = 1_000_000;
+const VEC_SIZES: [u64; 4] = [1_000, 1_000_000, 10_000_000, 100_000_000];
 #[allow(non_upper_case_globals)]
 const RANGE_f64: f64 = 1.0;
 //const N_ITERATIONS: usize = 10;
 
-fn generate_native_vec() -> Vec<Precision> {
+fn generate_native_vec(in_vec_size: u64) -> Vec<Precision> {
     let mut rng = rand::thread_rng();
     let range = Uniform::new(0.0, RANGE_f64);
-    let data: Vec<Precision> = (0..VEC_SIZE).map(|_| rng.sample(&range)).collect();
+    let data: Vec<Precision> = (0..in_vec_size).map(|_| rng.sample(&range)).collect();
     return data;
 }
 
 fn naive_native_rust(vec1: &Vec<Precision>, vec2: &Vec<Precision>) -> Precision {
     let mut output = 0.0;
-    for i in 0..VEC_SIZE {
+    for i in 0..vec1.len() {
         output += vec1[i as usize] * vec2[i as usize];
     }
     return output;
@@ -79,38 +79,41 @@ pub fn rust_ndarray_blas(vec1: &Array1<Precision>, vec2: &Array1<Precision>) -> 
 }
 
 fn dot_product_benchmarks(c: &mut Criterion) {
-    println!("Vector size {}", VEC_SIZE);
-    let vec1 = generate_native_vec();
-    let vec2 = generate_native_vec();
-
-    //Using ndarrays for so2
-    //We could have used for the generation
-    //let x = Array1::random(VEC_SIZE, Uniform::<f64>::new(0., RANGE_f64));
-    //let y = Array1::random(VEC_SIZE, Uniform::<f64>::new(0., RANGE_f64));
-    let x = Array1::from_vec(vec1.clone());
-    let y = Array1::from_vec(vec2.clone());
-
-
     let mut group = c.benchmark_group("Dot Product");
+    for i in VEC_SIZES {
+        let vec1 = generate_native_vec(i);
+        let vec2 = generate_native_vec(i);
 
-    group.bench_function("Naive Native", |b| {
-        b.iter(|| naive_native_rust(black_box(&vec1), black_box(&vec2)))
-    });
-    group.bench_function("Native 1", |b| {
-        b.iter(|| native_rust(black_box(&vec1), black_box(&vec2)))
-    });
-    group.bench_function("Native 2", |b| {
-        b.iter(|| native_rust2(black_box(&vec1), black_box(&vec2)))
-    });
-    group.bench_function("SIMD f64x8", |b| {
-        b.iter(|| simd_f64x8(black_box(&vec1), black_box(&vec2)))
-    });
-    group.bench_function("Blas ndarray", |b| {
-        b.iter(|| rust_ndarray_blas(black_box(&x), black_box(&y)))
-    });
+        //Using ndarrays for so2
+        //We could have used for the generation
+        //let x = Array1::random(VEC_SIZE, Uniform::<f64>::new(0., RANGE_f64));
+        //let y = Array1::random(VEC_SIZE, Uniform::<f64>::new(0., RANGE_f64));
+        let x = Array1::from_vec(vec1.clone());
+        let y = Array1::from_vec(vec2.clone());
 
+        group.bench_with_input(BenchmarkId::new("Naive Native", i), &i, |b, &_s| {
+            b.iter(|| naive_native_rust(black_box(&vec1), black_box(&vec2)));
+        });
+
+
+        group.bench_with_input(BenchmarkId::new("Native 1", i), &i, |b, &_s| {
+            b.iter(|| native_rust(black_box(&vec1), black_box(&vec2)));
+        });
+
+        group.bench_with_input(BenchmarkId::new("Native 2", i), &i, |b, &_s| {
+            b.iter(|| native_rust2(black_box(&vec1), black_box(&vec2)));
+        });
+
+        group.bench_with_input(BenchmarkId::new("SIMD f64x8", i), &i, |b, &_s| {
+            b.iter(|| simd_f64x8(black_box(&vec1), black_box(&vec2)));
+        });
+
+        group.bench_with_input(BenchmarkId::new("Blas ndarray", i), &i, |b, &_s| {
+            b.iter(|| rust_ndarray_blas(black_box(&x), black_box(&y)));
+        });
+
+    }
     group.finish();
-
 
     //TODO :  par_iter parallelism + SIMD f64x8
     //blas > all only when VECTOR_SIZE is large.
