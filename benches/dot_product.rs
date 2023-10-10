@@ -90,21 +90,27 @@ fn dot_product_benchmarks(c: &mut Criterion) {
     let x = Array1::from_vec(vec1.clone());
     let y = Array1::from_vec(vec2.clone());
 
-    c.bench_function("Naive Native", |b| {
+
+    let mut group = c.benchmark_group("Dot Product");
+
+    group.bench_function("Naive Native", |b| {
         b.iter(|| naive_native_rust(black_box(&vec1), black_box(&vec2)))
     });
-    c.bench_function("Native 1", |b| {
+    group.bench_function("Native 1", |b| {
         b.iter(|| native_rust(black_box(&vec1), black_box(&vec2)))
     });
-    c.bench_function("Native 2", |b| {
+    group.bench_function("Native 2", |b| {
         b.iter(|| native_rust2(black_box(&vec1), black_box(&vec2)))
     });
-    c.bench_function("SIMD f64x8", |b| {
+    group.bench_function("SIMD f64x8", |b| {
         b.iter(|| simd_f64x8(black_box(&vec1), black_box(&vec2)))
     });
-    c.bench_function("Blas ndarray", |b| {
+    group.bench_function("Blas ndarray", |b| {
         b.iter(|| rust_ndarray_blas(black_box(&x), black_box(&y)))
     });
+
+    group.finish();
+
 
     //TODO :  par_iter parallelism + SIMD f64x8
     //blas > all only when VECTOR_SIZE is large.
